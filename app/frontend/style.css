@@ -1,0 +1,142 @@
+
+/* General styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f6f9;
+    color: #333;
+    line-height: 1.6;
+}
+
+/* Header */
+header {
+    background: linear-gradient(135deg, #172554, #2563eb);
+    color: white;
+    text-align: center;
+    padding: 35px 20px;
+}
+
+header h1 {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
+
+/* Navigation */
+nav {
+    background-color: #172554;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 15px;
+    gap: 30px;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+nav a:hover {
+    color: #93c5fd;
+}
+
+/* Main content */
+main {
+    max-width: 1100px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+section {
+    background-color: white;
+    padding: 25px;
+    margin-bottom: 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+section h2 {
+    color: #1e40af;
+    margin-bottom: 15px;
+}
+
+/* Event and venue cards */
+.event-card,
+.venue-card {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 18px;
+    margin-bottom: 15px;
+}
+
+.event-card h3,
+.venue-card h3 {
+    color: #1e3a8a;
+    margin-bottom: 8px;
+}
+
+/* Footer */
+footer {
+    background-color: #172554;
+    color: white;
+    text-align: center;
+    padding: 20px;
+    margin-top: 40px;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+    header h1 {
+        font-size: 28px;
+    }
+
+    nav {
+        gap: 15px;
+    }
+
+    main {
+        padding: 0 12px;
+    }
+}
+
+
+/* Digital Ticket Design */
+.ticket-card {
+    background: linear-gradient(135deg, #ffffff, #eef5ff);
+    border: 2px dashed #2563eb;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 15px 0;
+    max-width: 450px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.ticket-card p {
+    margin: 10px 0;
+    overflow-wrap: anywhere;
+}
+
+.ticket-card p:first-child {
+    color: #1e40af;
+    font-weight: bold;
+}
+
+.ticket-card p:nth-child(2) {
+    font-family: monospace;
+    font-size: 14px;
+    background: #e0eaff;
+    padding: 10px;
+    border-radius: 6px;
+}
+
+.ticket-card p:last-child {
+    font-weight: bold;
+    color: #166534;
+}

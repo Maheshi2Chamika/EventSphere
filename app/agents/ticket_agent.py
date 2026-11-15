@@ -14,9 +14,18 @@ class TicketAgent:
         booking_id: int,
         quantity: int
     ):
+        # Check whether tickets already exist
+        existing_tickets = db.query(Ticket).filter(
+            Ticket.booking_id == booking_id
+        ).all()
+
+        # Return existing tickets if available
+        if existing_tickets:
+            return existing_tickets
 
         tickets = []
 
+        # Generate new tickets
         for _ in range(quantity):
             ticket = Ticket(
                 ticket_code=str(uuid.uuid4()),
@@ -39,7 +48,6 @@ class TicketAgent:
         db: Session,
         ticket_code: str
     ):
-
         ticket = db.query(Ticket).filter(
             Ticket.ticket_code == ticket_code
         ).first()

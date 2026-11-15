@@ -1,11 +1,12 @@
 
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from app.database import engine, Base, SessionLocal
 from app import models, schemas
-from app.agents.venue_agent import VenueAgent
 
+from app.agents.venue_agent import VenueAgent
 from app.agents.booking_agent import BookingAgent
 from app.agents.ticket_agent import TicketAgent
 from app.agents.waitlist_agent import WaitlistAgent
@@ -16,10 +17,19 @@ from app.agents.notification_agent import NotificationAgent
 Base.metadata.create_all(bind=engine)
 
 
+# Create FastAPI application
 app = FastAPI(
     title="EventSphere",
     description="Multi-Agent Venue Booking and Digital Ticketing Platform",
     version="1.0.0"
+)
+
+
+# Serve frontend files
+app.mount(
+    "/frontend",
+    StaticFiles(directory="app/frontend", html=True),
+    name="frontend"
 )
 
 
@@ -32,20 +42,14 @@ def get_db():
         db.close()
 
 
-# Create Venue Agent
+# Initialize agents
 venue_agent = VenueAgent()
-
-# Create Booking Agent
 booking_agent = BookingAgent()
-
-# Create Ticket Agent
 ticket_agent = TicketAgent()
-
-# Create Waitlist Agent
 waitlist_agent = WaitlistAgent()
-
-# Create Notification Agent
 notification_agent = NotificationAgent()
+
+
 # Home endpoint
 @app.get("/")
 def home():
@@ -61,6 +65,10 @@ def status():
         "status": "Running"
     }
 
+
+# -----------------------------
+# VENUE APIs
+# -----------------------------
 
 # Create a venue
 @app.post("/venues", response_model=schemas.VenueResponse)
@@ -111,6 +119,9 @@ def create_venue_hire_request(
         )
 
 
+# -----------------------------
+# EVENT APIs
+# -----------------------------
 
 # Create an event
 @app.post("/events", response_model=schemas.EventResponse)
@@ -118,7 +129,6 @@ def create_event(
     event: schemas.EventCreate,
     db: Session = Depends(get_db)
 ):
-    # Check whether the venue exists
     venue = db.query(models.Venue).filter(
         models.Venue.id == event.venue_id
     ).first()
@@ -129,7 +139,6 @@ def create_event(
             detail="Venue not found"
         )
 
-    # Check whether the organizer exists
     organizer = db.query(models.User).filter(
         models.User.id == event.organizer_id
     ).first()
@@ -140,7 +149,6 @@ def create_event(
             detail="Organizer not found"
         )
 
-    # Create the event
     new_event = models.Event(**event.model_dump())
 
     db.add(new_event)
@@ -158,6 +166,9 @@ def get_events(
     return db.query(models.Event).all()
 
 
+# -----------------------------
+# TICKET CATEGORY APIs
+# -----------------------------
 
 # Create a ticket category
 @app.post(
@@ -168,7 +179,6 @@ def create_ticket_category(
     category: schemas.TicketCategoryCreate,
     db: Session = Depends(get_db)
 ):
-    # Check whether the event exists
     event = db.query(models.Event).filter(
         models.Event.id == category.event_id
     ).first()
@@ -179,14 +189,12 @@ def create_ticket_category(
             detail="Event not found"
         )
 
-    # Validate price and quantity
     if category.price < 0 or category.quantity <= 0:
         raise HTTPException(
             status_code=400,
             detail="Price cannot be negative and quantity must be positive"
         )
 
-    # Create ticket category
     new_category = models.TicketCategory(
         **category.model_dump()
     )
@@ -209,6 +217,9 @@ def get_ticket_categories(
     return db.query(models.TicketCategory).all()
 
 
+# -----------------------------
+# BOOKING APIs
+# -----------------------------
 
 # Create a booking
 @app.post("/bookings", response_model=schemas.BookingResponse)
@@ -240,6 +251,9 @@ def get_bookings(
     return db.query(models.Booking).all()
 
 
+# -----------------------------
+# DIGITAL TICKET APIs
+# -----------------------------
 
 # Generate digital tickets for a booking
 @app.post(
@@ -250,7 +264,6 @@ def generate_tickets(
     booking_id: int,
     db: Session = Depends(get_db)
 ):
-    # Find the booking
     booking = db.query(models.Booking).filter(
         models.Booking.id == booking_id
     ).first()
@@ -275,6 +288,30 @@ def generate_tickets(
         )
 
 
+# NEW: Get existing tickets for a booking
+@app.get(
+    "/bookings/{booking_id}/tickets",
+    response_model=list[schemas.TicketResponse]
+)
+def get_booking_tickets(
+    booking_id: int,
+    db: Session = Depends(get_db)
+):
+    booking = db.query(models.Booking).filter(
+        models.Booking.id == booking_id
+    ).first()
+
+    if not booking:
+        raise HTTPException(
+            status_code=404,
+            detail="Booking not found"
+        )
+
+    return db.query(models.Ticket).filter(
+        models.Ticket.booking_id == booking_id
+    ).all()
+
+
 # Check in an attendee using their ticket code
 @app.post(
     "/tickets/{ticket_code}/check-in",
@@ -297,6 +334,9 @@ def check_in_ticket(
         )
 
 
+# -----------------------------
+# WAITLIST APIs
+# -----------------------------
 
 # Add an attendee message to the waitlist
 @app.post(
@@ -307,7 +347,6 @@ def add_waitlist_message(
     message: schemas.WaitlistMessageCreate,
     db: Session = Depends(get_db)
 ):
-    # Check whether the user exists
     user = db.query(models.User).filter(
         models.User.id == message.user_id
     ).first()
@@ -336,6 +375,9 @@ def get_waitlist_messages(
     return waitlist_agent.get_waitlist_messages(db)
 
 
+# -----------------------------
+# NOTIFICATION APIs
+# -----------------------------
 
 # Create a notification
 @app.post(
@@ -346,7 +388,6 @@ def create_notification(
     notification: schemas.NotificationCreate,
     db: Session = Depends(get_db)
 ):
-    # Check whether the user exists
     user = db.query(models.User).filter(
         models.User.id == notification.user_id
     ).first()
