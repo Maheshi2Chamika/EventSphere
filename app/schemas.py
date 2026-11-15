@@ -41,3 +41,80 @@ class VenueHireRequestResponse(BaseModel):
     status: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+
+# Event schemas
+class EventCreate(BaseModel):
+    title: str
+    description: str | None = None
+    event_date: datetime
+    venue_id: int
+    organizer_id: int
+
+
+class EventResponse(BaseModel):
+    id: int
+    title: str
+    description: str | None = None
+    event_date: datetime
+    venue_id: int
+    organizer_id: int
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
+# Ticket Category schemas
+class TicketCategoryCreate(BaseModel):
+    name: str
+    price: int
+    quantity: int
+    event_id: int
+
+
+class TicketCategoryResponse(BaseModel):
+    id: int
+    name: str
+    price: int
+    quantity: int
+    event_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
+# Booking schemas
+class BookingCreate(BaseModel):
+    user_id: int
+    event_id: int
+    ticket_category_id: int
+    quantity: int
+
+
+class BookingResponse(BaseModel):
+    id: int
+    user_id: int
+    event_id: int
+    ticket_category_id: int
+    quantity: int
+    total_price: int
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
+# Ticket schemas
+class TicketGenerateRequest(BaseModel):
+    booking_id: int
+
+
+class TicketResponse(BaseModel):
+    id: int
+    ticket_code: str
+    booking_id: int
+    is_checked_in: bool
+
+    model_config = ConfigDict(from_attributes=True)

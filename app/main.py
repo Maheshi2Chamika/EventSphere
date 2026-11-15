@@ -6,6 +6,9 @@ from app.database import engine, Base, SessionLocal
 from app import models, schemas
 from app.agents.venue_agent import VenueAgent
 
+from app.agents.booking_agent import BookingAgent
+from app.agents.ticket_agent import TicketAgent
+
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -29,6 +32,12 @@ def get_db():
 
 # Create Venue Agent
 venue_agent = VenueAgent()
+
+# Create Booking Agent
+booking_agent = BookingAgent()
+
+# Create Ticket Agent
+ticket_agent = TicketAgent()
 
 
 # Home endpoint
@@ -87,6 +96,192 @@ def create_venue_hire_request(
             event_name=request.event_name,
             requested_date=request.requested_date,
             expected_attendees=request.expected_attendees
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+
+
+# Create an event
+@app.post("/events", response_model=schemas.EventResponse)
+def create_event(
+    event: schemas.EventCreate,
+    db: Session = Depends(get_db)
+):
+    # Check whether the venue exists
+    venue = db.query(models.Venue).filter(
+        models.Venue.id == event.venue_id
+    ).first()
+
+    if not venue:
+        raise HTTPException(
+            status_code=404,
+            detail="Venue not found"
+        )
+
+    # Check whether the organizer exists
+    organizer = db.query(models.User).filter(
+        models.User.id == event.organizer_id
+    ).first()
+
+    if not organizer:
+        raise HTTPException(
+            status_code=404,
+            detail="Organizer not found"
+        )
+
+    # Create the event
+    new_event = models.Event(**event.model_dump())
+
+    db.add(new_event)
+    db.commit()
+    db.refresh(new_event)
+
+    return new_event
+
+
+# Get all events
+@app.get("/events", response_model=list[schemas.EventResponse])
+def get_events(
+    db: Session = Depends(get_db)
+):
+    return db.query(models.Event).all()
+
+
+
+# Create a ticket category
+@app.post(
+    "/ticket-categories",
+    response_model=schemas.TicketCategoryResponse
+)
+def create_ticket_category(
+    category: schemas.TicketCategoryCreate,
+    db: Session = Depends(get_db)
+):
+    # Check whether the event exists
+    event = db.query(models.Event).filter(
+        models.Event.id == category.event_id
+    ).first()
+
+    if not event:
+        raise HTTPException(
+            status_code=404,
+            detail="Event not found"
+        )
+
+    # Validate price and quantity
+    if category.price < 0 or category.quantity <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Price cannot be negative and quantity must be positive"
+        )
+
+    # Create ticket category
+    new_category = models.TicketCategory(
+        **category.model_dump()
+    )
+
+    db.add(new_category)
+    db.commit()
+    db.refresh(new_category)
+
+    return new_category
+
+
+# Get all ticket categories
+@app.get(
+    "/ticket-categories",
+    response_model=list[schemas.TicketCategoryResponse]
+)
+def get_ticket_categories(
+    db: Session = Depends(get_db)
+):
+    return db.query(models.TicketCategory).all()
+
+
+
+# Create a booking
+@app.post("/bookings", response_model=schemas.BookingResponse)
+def create_booking(
+    booking: schemas.BookingCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        return booking_agent.create_booking(
+            db=db,
+            user_id=booking.user_id,
+            event_id=booking.event_id,
+            ticket_category_id=booking.ticket_category_id,
+            quantity=booking.quantity
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+
+# Get all bookings
+@app.get("/bookings", response_model=list[schemas.BookingResponse])
+def get_bookings(
+    db: Session = Depends(get_db)
+):
+    return db.query(models.Booking).all()
+
+
+
+# Generate digital tickets for a booking
+@app.post(
+    "/bookings/{booking_id}/tickets",
+    response_model=list[schemas.TicketResponse]
+)
+def generate_tickets(
+    booking_id: int,
+    db: Session = Depends(get_db)
+):
+    # Find the booking
+    booking = db.query(models.Booking).filter(
+        models.Booking.id == booking_id
+    ).first()
+
+    if not booking:
+        raise HTTPException(
+            status_code=404,
+            detail="Booking not found"
+        )
+
+    try:
+        return ticket_agent.generate_tickets(
+            db=db,
+            booking_id=booking_id,
+            quantity=booking.quantity
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error)
+        )
+
+
+# Check in an attendee using their ticket code
+@app.post(
+    "/tickets/{ticket_code}/check-in",
+    response_model=schemas.TicketResponse
+)
+def check_in_ticket(
+    ticket_code: str,
+    db: Session = Depends(get_db)
+):
+    try:
+        return ticket_agent.check_in_ticket(
+            db=db,
+            ticket_code=ticket_code
         )
 
     except ValueError as error:
