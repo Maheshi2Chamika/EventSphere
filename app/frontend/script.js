@@ -192,7 +192,18 @@ async function loadMyBookings() {
 
     try {
         const response = await fetch(`${API_URL}/bookings`);
-        const bookings = await response.json();
+const bookings = await response.json();
+
+// Get event details
+    const eventResponse = await fetch(`${API_URL}/events`);
+    const events = await eventResponse.json();
+
+    // Create an event ID-to-name lookup
+    const eventNames = {};
+
+    events.forEach(event => {
+        eventNames[event.id] = event.title;
+    });
 
         bookingList.innerHTML = "";
 
@@ -214,7 +225,7 @@ userBookings.forEach(booking => {
 
     card.innerHTML = `
         <h3>Booking #${booking.id}</h3>
-        <p>Event ID: ${booking.event_id}</p>
+        <p>Event: ${eventNames[booking.event_id] || "Unknown Event"}</p>
         <p>Quantity: ${booking.quantity}</p>
         <p>Total: LKR ${booking.total_price}</p>
         <p>Status: ${booking.status}</p>
@@ -287,13 +298,14 @@ async function loadExistingTickets(bookingId, button) {
             "<h4>Your Digital Tickets</h4>";
 
         tickets.forEach(ticket => {
-            const ticketCard = document.createElement("div");
-            ticketCard.className = "ticket-card";
+           const ticketCard = document.createElement("div");
+           ticketCard.className = "ticket-card";
+           ticketCard.dataset.ticketCode = ticket.ticket_code;
 
             ticketCard.innerHTML = `
                 <p><strong>Ticket Code:</strong></p>
                 <p>${ticket.ticket_code}</p>
-                <p>Status: ${ticket.is_checked_in ? "Checked In" : "Valid"}</p>
+                <p>Status: <span class="ticket-status">${ticket.is_checked_in ? "Checked In" : "Valid"}</span></p>
             `;
 
             ticketContainer.appendChild(ticketCard);
@@ -334,11 +346,12 @@ async function generateDigitalTickets(bookingId, button) {
         tickets.forEach(ticket => {
             const ticketCard = document.createElement("div");
             ticketCard.className = "ticket-card";
+            ticketCard.dataset.ticketCode = ticket.ticket_code;
 
             ticketCard.innerHTML = `
                 <p><strong>Ticket Code:</strong></p>
                 <p>${ticket.ticket_code}</p>
-                <p>Status: ${ticket.is_checked_in ? "Checked In" : "Valid"}</p>
+                <p>Status: <span class="ticket-status">${ticket.is_checked_in ? "Checked In" : "Valid"}</span></p>
             `;
 
             ticketContainer.appendChild(ticketCard);
@@ -380,7 +393,18 @@ async function checkInTicket(event) {
         }
 
         message.textContent =
-            "Ticket successfully checked in!";
+    "Ticket successfully checked in!";
+
+// Update the ticket status without refreshing
+document.querySelectorAll(".ticket-card").forEach(card => {
+    if (card.dataset.ticketCode === ticketCode) {
+        const status = card.querySelector(".ticket-status");
+
+        if (status) {
+            status.textContent = "Checked In";
+        }
+    }
+});
 
         document.getElementById("checkin-form").reset();
 
