@@ -8,6 +8,8 @@ from app.agents.venue_agent import VenueAgent
 
 from app.agents.booking_agent import BookingAgent
 from app.agents.ticket_agent import TicketAgent
+from app.agents.waitlist_agent import WaitlistAgent
+from app.agents.notification_agent import NotificationAgent
 
 
 # Create database tables
@@ -39,7 +41,11 @@ booking_agent = BookingAgent()
 # Create Ticket Agent
 ticket_agent = TicketAgent()
 
+# Create Waitlist Agent
+waitlist_agent = WaitlistAgent()
 
+# Create Notification Agent
+notification_agent = NotificationAgent()
 # Home endpoint
 @app.get("/")
 def home():
@@ -287,5 +293,110 @@ def check_in_ticket(
     except ValueError as error:
         raise HTTPException(
             status_code=400,
+            detail=str(error)
+        )
+
+
+
+# Add an attendee message to the waitlist
+@app.post(
+    "/waitlist",
+    response_model=schemas.WaitlistMessageResponse
+)
+def add_waitlist_message(
+    message: schemas.WaitlistMessageCreate,
+    db: Session = Depends(get_db)
+):
+    # Check whether the user exists
+    user = db.query(models.User).filter(
+        models.User.id == message.user_id
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    return waitlist_agent.add_to_waitlist(
+        db=db,
+        user_id=message.user_id,
+        message_text=message.message_text
+    )
+
+
+# Get all waitlist messages
+@app.get(
+    "/waitlist",
+    response_model=list[schemas.WaitlistMessageResponse]
+)
+def get_waitlist_messages(
+    db: Session = Depends(get_db)
+):
+    return waitlist_agent.get_waitlist_messages(db)
+
+
+
+# Create a notification
+@app.post(
+    "/notifications",
+    response_model=schemas.NotificationResponse
+)
+def create_notification(
+    notification: schemas.NotificationCreate,
+    db: Session = Depends(get_db)
+):
+    # Check whether the user exists
+    user = db.query(models.User).filter(
+        models.User.id == notification.user_id
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+
+    return notification_agent.send_notification(
+        db=db,
+        user_id=notification.user_id,
+        title=notification.title,
+        message=notification.message
+    )
+
+
+# Get notifications for a user
+@app.get(
+    "/notifications/{user_id}",
+    response_model=list[schemas.NotificationResponse]
+)
+def get_notifications(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    return notification_agent.get_user_notifications(
+        db=db,
+        user_id=user_id
+    )
+
+
+# Mark a notification as read
+@app.put(
+    "/notifications/{notification_id}/read",
+    response_model=schemas.NotificationResponse
+)
+def mark_notification_as_read(
+    notification_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        return notification_agent.mark_as_read(
+            db=db,
+            notification_id=notification_id
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=404,
             detail=str(error)
         )

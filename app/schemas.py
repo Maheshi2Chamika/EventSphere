@@ -118,3 +118,38 @@ class TicketResponse(BaseModel):
     is_checked_in: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+
+
+# Waitlist schemas
+class WaitlistMessageCreate(BaseModel):
+    user_id: int
+    message_text: str
+
+
+class WaitlistMessageResponse(BaseModel):
+    id: int
+    user_id: int
+    message_text: str
+    sender: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
+# Notification schemas
+class NotificationCreate(BaseModel):
+    user_id: int
+    title: str
+    message: str
+
+
+class NotificationResponse(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    message: str
+    is_read: bool
+
+    model_config = ConfigDict(from_attributes=True)
