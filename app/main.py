@@ -66,6 +66,7 @@ def status():
     }
 
 
+
 # -----------------------------
 # VENUE APIs
 # -----------------------------
@@ -117,6 +118,17 @@ def create_venue_hire_request(
             status_code=400,
             detail=str(error)
         )
+
+
+# Get all venue hire requests
+@app.get(
+    "/venue-hire-requests",
+    response_model=list[schemas.VenueHireRequestResponse]
+)
+def get_venue_hire_requests(
+    db: Session = Depends(get_db)
+):
+    return db.query(models.VenueHireRequest).all()
 
 
 # -----------------------------
@@ -217,18 +229,19 @@ def get_ticket_categories(
     return db.query(models.TicketCategory).all()
 
 
+
 # -----------------------------
 # BOOKING APIs
 # -----------------------------
 
-# Create a booking
+# Create a booking and send notification
 @app.post("/bookings", response_model=schemas.BookingResponse)
 def create_booking(
     booking: schemas.BookingCreate,
     db: Session = Depends(get_db)
 ):
     try:
-        return booking_agent.create_booking(
+        new_booking = booking_agent.create_booking(
             db=db,
             user_id=booking.user_id,
             event_id=booking.event_id,
@@ -236,19 +249,29 @@ def create_booking(
             quantity=booking.quantity
         )
 
+        event = db.query(models.Event).filter(
+            models.Event.id == new_booking.event_id
+        ).first()
+
+        notification_agent.send_notification(
+            db=db,
+            user_id=new_booking.user_id,
+            title="Booking Successful",
+            message=(
+                f"Your booking #{new_booking.id} for "
+                f"{event.title} has been created successfully. "
+                f"Quantity: {new_booking.quantity}."
+            )
+        )
+
+        return new_booking
+
     except ValueError as error:
         raise HTTPException(
             status_code=400,
             detail=str(error)
         )
 
-
-# Get all bookings
-@app.get("/bookings", response_model=list[schemas.BookingResponse])
-def get_bookings(
-    db: Session = Depends(get_db)
-):
-    return db.query(models.Booking).all()
 
 
 # -----------------------------

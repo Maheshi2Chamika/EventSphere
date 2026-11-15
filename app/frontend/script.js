@@ -88,6 +88,8 @@ async function loadVenues() {
 document.addEventListener("DOMContentLoaded", () => {
     loadEvents();
     loadVenues();
+    loadNotifications();
+    loadVenueHireRequests();
 });
 
 
@@ -179,6 +181,7 @@ async function createBooking(event) {
 
         await loadMyBookings();
         await loadTicketCategories();
+        await loadNotifications();
 
     } catch (error) {
         message.textContent = error.message;
@@ -419,3 +422,326 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("checkin-form")
         .addEventListener("submit", checkInTicket);
 });
+
+
+
+// Load notifications for the current user
+async function loadNotifications() {
+    const notificationList =
+        document.getElementById("notification-list");
+
+    const userId =
+        Number(document.getElementById("user-id").value);
+
+    try {
+        const response = await fetch(
+            `${API_URL}/notifications/${userId}`
+        );
+
+        if (!response.ok) {
+            throw new Error("Failed to load notifications");
+        }
+
+        const notifications = await response.json();
+
+        notificationList.innerHTML = "";
+
+        if (notifications.length === 0) {
+            notificationList.textContent = "No notifications yet.";
+            return;
+        }
+
+        notifications.forEach(notification => {
+            const card = document.createElement("div");
+            card.className = "event-card";
+
+            const title = document.createElement("h3");
+            title.textContent = notification.title;
+
+            const message = document.createElement("p");
+            message.textContent = notification.message;
+
+            const status = document.createElement("p");
+            status.textContent = notification.is_read
+                ? "Read"
+                : "Unread";
+
+            card.appendChild(title);
+            card.appendChild(message);
+            card.appendChild(status);
+
+            if (!notification.is_read) {
+                const button = document.createElement("button");
+                button.textContent = "Mark as Read";
+
+                button.addEventListener("click", () => {
+                    markNotificationAsRead(
+                        notification.id
+                    );
+                });
+
+                card.appendChild(button);
+            }
+
+            notificationList.appendChild(card);
+        });
+
+    } catch (error) {
+        notificationList.textContent =
+            "Unable to load notifications.";
+
+        console.error(error);
+    }
+}
+
+
+// Mark a notification as read
+async function markNotificationAsRead(notificationId) {
+    try {
+        const response = await fetch(
+            `${API_URL}/notifications/${notificationId}/read`,
+            {
+                method: "PUT"
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error("Failed to update notification");
+        }
+
+        await loadNotifications();
+
+    } catch (error) {
+        console.error(error);
+        alert(error.message);
+    }
+}
+
+
+
+// Load all waitlist messages
+async function loadWaitlist() {
+    const waitlistList =
+        document.getElementById("waitlist-list");
+
+    try {
+        const response = await fetch(`${API_URL}/waitlist`);
+
+        if (!response.ok) {
+            throw new Error("Failed to load waitlist");
+        }
+
+        const messages = await response.json();
+
+        waitlistList.innerHTML = "";
+
+        if (messages.length === 0) {
+            waitlistList.textContent = "No waitlist messages yet.";
+            return;
+        }
+
+        messages.forEach(item => {
+            const card = document.createElement("div");
+            card.className = "event-card";
+
+            const heading = document.createElement("h3");
+            heading.textContent = `Waitlist Message #${item.id}`;
+
+            const user = document.createElement("p");
+            user.textContent = `User ID: ${item.user_id}`;
+
+            const message = document.createElement("p");
+            message.textContent = item.message_text;
+
+            card.appendChild(heading);
+            card.appendChild(user);
+            card.appendChild(message);
+
+            waitlistList.appendChild(card);
+        });
+
+    } catch (error) {
+        waitlistList.textContent =
+            "Unable to load waitlist messages.";
+
+        console.error(error);
+    }
+}
+
+
+// Submit a waitlist message
+async function submitWaitlistMessage(event) {
+    event.preventDefault();
+
+    const userId = Number(
+        document.getElementById("waitlist-user-id").value
+    );
+
+    const messageText =
+        document.getElementById("waitlist-message").value.trim();
+
+    const responseMessage =
+        document.getElementById("waitlist-response");
+
+    if (!messageText) {
+        responseMessage.textContent = "Please enter a message.";
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/waitlist`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                message_text: messageText
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.detail || "Failed to join waitlist");
+        }
+
+        responseMessage.textContent =
+            "Successfully joined the waitlist!";
+
+        document.getElementById("waitlist-form").reset();
+
+        // Restore default user ID
+        document.getElementById("waitlist-user-id").value = 1;
+
+        // Refresh waitlist messages
+        await loadWaitlist();
+
+    } catch (error) {
+        responseMessage.textContent = error.message;
+        console.error(error);
+    }
+}
+
+
+// Connect waitlist form
+document.addEventListener("DOMContentLoaded", () => {
+
+    loadWaitlist();
+
+    document.getElementById("waitlist-form")
+        .addEventListener("submit", submitWaitlistMessage);
+
+});
+
+
+// Submit a venue hire request
+async function submitVenueHireRequest(event) {
+    event.preventDefault();
+
+    const userId = Number(
+        document.getElementById("hire-user-id").value
+    );
+
+    const venueId = Number(
+        document.getElementById("hire-venue-id").value
+    );
+
+    const eventName = document.getElementById("hire-event-name").value.trim();
+
+    const requestedDate = document.getElementById("hire-date").value;
+
+    const expectedAttendees = Number(
+        document.getElementById("hire-attendees").value
+    );
+
+    const responseMessage = document.getElementById(
+        "venue-hire-response"
+    );
+
+    try {
+        const response = await fetch(`${API_URL}/venue-hire-requests`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                venue_id: venueId,
+                event_name: eventName,
+                requested_date: requestedDate,
+                expected_attendees: expectedAttendees
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.detail || "Failed to submit venue hire request."
+            );
+        }
+
+        responseMessage.textContent =
+            "Venue hire request submitted successfully!";
+
+        document.getElementById("venue-hire-form").reset();
+
+        document.getElementById("hire-user-id").value = 1;
+
+        // Refresh the venue hire request list
+        await loadVenueHireRequests();
+    } catch (error) {
+        responseMessage.textContent = error.message;
+        console.error(error);
+    }
+}
+
+// Connect the form
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("venue-hire-form")
+        .addEventListener("submit", submitVenueHireRequest);
+});
+
+// Load all venue hire requests
+async function loadVenueHireRequests() {
+    const requestList = document.getElementById("venue-hire-list");
+
+    try {
+        const response = await fetch(`${API_URL}/venue-hire-requests`);
+
+        if (!response.ok) {
+            throw new Error("Failed to load venue hire requests");
+        }
+
+        const requests = await response.json();
+
+        requestList.innerHTML = "";
+
+        if (requests.length === 0) {
+            requestList.textContent = "No venue hire requests yet.";
+            return;
+        }
+
+        requests.forEach(request => {
+            const card = document.createElement("div");
+            card.className = "event-card";
+
+            card.innerHTML = `
+                <h3>Request #${request.id}</h3>
+                <p>User ID: ${request.user_id}</p>
+                <p>Venue ID: ${request.venue_id}</p>
+                <p>Event: ${request.event_name}</p>
+                <p>Date: ${new Date(request.requested_date).toLocaleString()}</p>
+                <p>Expected Attendees: ${request.expected_attendees}</p>
+                <p>Status: ${request.status}</p>
+            `;
+
+            requestList.appendChild(card);
+        });
+
+    } catch (error) {
+        requestList.textContent = error.message;
+        console.error(error);
+    }
+}
